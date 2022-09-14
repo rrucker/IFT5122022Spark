@@ -4,9 +4,27 @@ Going from a Scala sequence of ( nr, height, weight)
 -> DataFrame-> Dataset -> then extract the height , weight
  as Vectors, then compute the correlation coefficient
  between these vectors
-
- (in-class ad hoc programming assignment )
-2021-01-21rr
+ (in-class  programming
+2021-01-21/2022-08rr
+ Points to note:SPARK is a scala domain specific language(DSL)
+( that changed the World!!!)
+Main SPARK data structures = Dataframes(DF), Datasets(DS), SQL tables
+ 1. Dataframes(DF) are the first choice for (optimized)processing
+ 2. SQL api is available as alternatice access to Dataframes
+ 3. Datasets are TYPED Dataframes and allow Java/Scala code direct
+ ( in fact a Dataframe IS a Dataset of type ROW, ie
+ Dataframe = Dataset[Row]
+However, SPARK keeps the DataFrame internals mostly hidden.
+Note our guide text says range is a Dataframe ( nope, its a Dataset)
+ 4. The scala connection shows that a Spark Dataset IS a set of
+ case class instances!!
+ *******   Scala notes *****
+ well, all the code here is scala! so every line shows scala
+ a. check out higher order functions that take functions as arguments
+ b. I write a small set o stat functions to illustrate scala,
+ along the way I calc the correlation coefficient for a couple of vectors
+btw: the correlation coef IS just the cosine between two centered vecs
+ and their linear regression parameters
 */
 
 import org.apache.spark.sql.SparkSession
@@ -28,12 +46,13 @@ val spark = SparkSession
 .getOrCreate()
 spark.conf.set("spark.sql.shuffle.partitions", "5")
 import spark.implicits._
+spark.version
 type S = String;type D = Double; type I = Integer
 type V = Vector[D]
 val myRangeX = spark.range(8)
-myRangeX.as[Long]
-myRangeX.collect()
-val fil = myRangeX.map( x => x * 2)
+myRangeX.as[Long]       // convert to Long Dataset
+myRangeX.collect()      // bring all data baxk to driver ( CRASH is possible)
+val fil = myRangeX.map( x => x * 2)  //myRngeX.map(_ * 2)
 fil.collect()
 val myRange = spark.range(8).toDF("Nr")
 myRange.count()
@@ -47,7 +66,7 @@ val dataValues = Seq(
  (17, 69)
 ).toDF("age", "height")
 dataValues.show()
-print(s" show a collect() on a Dataframe vrsus a Dataset")
+print(s" show a collect() on a Dataframe versus a Dataset")
 dataValues.collect()
 //  now convert to a DS
 val ds = dataValues.as[Data]
@@ -80,6 +99,7 @@ def dot(v:V, w:V):D =
 def norm(v:V):D = math.sqrt(dot(v,v))
 def mean(v:V):D= v.sum/v.size
 def center(v:V):V = v.map{_ - mean(v)}
+def center1 (v:V):V = v.map{x => x - mean(v)}
 /*I want to use the Data case class to convert a
 DF to a DS so I can use user (Java/Scala)functions on it
 */
@@ -101,7 +121,7 @@ val X = clientsDS.collect().map{c =>c.height}.toVector
 val Y = clientsDS.collect().map{c => c.weight}.toVector
 val x1 = center(X)
 val y1 = center(Y)
-
+// dot ( a,b) = |a| |b| cos( angle between)
  val cosine= dot(x1,y1)/(norm(x1)* norm(y1))
 val arccosine = acos(cosine) * 180.0/math.Pi
 val regressionCoefficient = dot(x1,y1)/dot(x1,x1)
@@ -126,13 +146,8 @@ println(s"show return types of collect() in DataFrames & Datasets")
 
 //r1.toDF
 r1.toDF("id")
-
-
 r1.toDF("id").show()
-
 r1.toDF("id").collect()
-
-
 r1.toDF("id").limit(2).show()
 
 
